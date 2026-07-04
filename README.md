@@ -109,7 +109,7 @@ A Postman collection with ready-to-use requests for all endpoints below is avail
 The cron worker runs the delinquency check on a schedule and updates loans that have been inactive for at least three weeks.
 
 Current schedule:
-- Midnight every day: `0 0 * * *`
+- Midnight every day: `0 0 0 * * *`
 
 ## Database
 
