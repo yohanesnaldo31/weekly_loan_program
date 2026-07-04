@@ -1,1 +1,193 @@
-"upstream connect error or disconnect/reset before headers. reset reason: connection timeout"
+{
+  "info": {
+    "_postman_id": "3e81e709-2d3b-4b01-8754-0c3b7834f17a",
+    "name": "weekly_loan_program",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "7442563"
+  },
+  "item": [
+    {
+      "name": "Get User's Loans",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "localhost:8000/user/loans?user_id=1",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "user",
+            "loans"
+          ],
+          "query": [
+            {
+              "key": "user_id",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Request Loan",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"user_id\": 1, // can't be 0\n    \"loan_amount\": 50000000, // can't be lower than 10000\n    \"installment_in_weeks\": 50 // can't be > 5 years & cant be bigger than loan_amounts\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "localhost:8000/request/loan",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "request",
+            "loan"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Pay Loan",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"user_id\": 1, // can't be 0\n    \"payment_amount\": 5500000,\n    \"payment_time\": \"2026-07-26\" // simulate date for easier testing, optional, format \"YYYY-MM-DD\"\n}"
+        },
+        "url": {
+          "raw": "localhost:8000/pay/loan",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "pay",
+            "loan"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Check User is Delinquent",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "localhost:8000/user/delinquent?user_id=1",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "user",
+            "delinquent"
+          ],
+          "query": [
+            {
+              "key": "user_id",
+              "value": "1",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Check User Outstanding",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "localhost:8000/user/outstanding?user_id=1",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "user",
+            "outstanding"
+          ],
+          "query": [
+            {
+              "key": "user_id",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Trigger Delinquent Check (Should be run by Cron in Production)",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"time\": \"2026-07-26\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "localhost:8000/internal/trigger/delinquent_check",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "internal",
+            "trigger",
+            "delinquent_check"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

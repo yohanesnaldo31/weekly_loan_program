@@ -12,6 +12,9 @@ A Go-based loan management service with HTTP endpoints for loan requests, paymen
 - Trigger delinquency updates via an internal endpoint
 - Run a scheduled delinquency check at midnight with a cron job
 
+## High Level Design
+![High Level Design](https://drive.google.com/uc?export=view&id=1cUcT8mq-vzEJEaq9r2XQmlPJV6ATplsb)
+
 ## Architecture
 
 The project follows a layered structure:
