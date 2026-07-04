@@ -19,6 +19,10 @@ type dbRepoProvider interface {
 	// create_time descending (most recent first).
 	GetUserLoansByUserID(ctx context.Context, userID int64) ([]db.Loan, error)
 
+	// GetLoansByStatusesAndLastActivityTime returns loans whose status is in the provided list,
+	// filtered by update_time and ordered by update_time descending.
+	GetLoansByStatusesAndLastActivityTime(ctx context.Context, statuses []int16, lastActivityDate time.Time) ([]db.Loan, error)
+
 	// GetBillingsByLoanIDAndDueDate returns the billings for the given loan due
 	// before dueDate, sorted by due_date ascending. When status is 0, billings
 	// are returned regardless of status; otherwise only billings matching status
@@ -40,6 +44,10 @@ type dbRepoProvider interface {
 	// UpdateLoan updates the total paid, status, and update time of the loan
 	// with the given ID within the given transaction.
 	UpdateLoan(ctx context.Context, tx pgx.Tx, loanID int64, totalPaid int64, status int16, updateTime time.Time) error
+
+	// UpdateLoansStatusAndUpdateTimeByIDs updates the status and update time of
+	// loans whose IDs are included in the provided list.
+	UpdateLoansStatusAndUpdateTimeByIDs(ctx context.Context, loanIDs []int64, status int16, updateTime time.Time) error
 }
 
 type cacheRepoProvider interface {

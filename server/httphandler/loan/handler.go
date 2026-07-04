@@ -2,6 +2,7 @@ package loan
 
 import (
 	"context"
+	"time"
 
 	"weekly_loan_program/usecase/loan"
 )
@@ -25,6 +26,15 @@ type loanUsecaseProvider interface {
 	// updates the loan's total paid and status (completing the loan if the
 	// payment covers the remaining outstanding amount).
 	PayLoan(ctx context.Context, request loan.PayLoanInput) error
+
+	// CheckUserDelinquent returns whether the user's first loan is delinquent.
+	CheckUserDelinquent(ctx context.Context, userID int64) (bool, error)
+
+	// GetUserCurrentOutstanding returns the current outstanding amount for the user's first loan, or 0 if none exists.
+	GetUserCurrentOutstanding(ctx context.Context, userID int64) (int64, error)
+
+	// UpdateLoanDelinquentStatus updates loans to delinquent based on the provided reference time.
+	UpdateLoanDelinquentStatus(ctx context.Context, referenceTime time.Time) error
 }
 
 type Handler struct {

@@ -23,10 +23,18 @@ type LoanServiceProvider interface {
 	// present, otherwise falls back to the database and populates the cache.
 	GetUserLoansByUserID(ctx context.Context, userID int64) ([]loan.Loan, error)
 
+	// GetLoansByStatusesAndLastActivityTime returns loans whose status is in the provided list,
+	// filtered by update_time lower than the provided date and ordered by update_time descending.
+	GetLoansByStatusesAndLastActivityTime(ctx context.Context, statuses []int16, lastActivityDate time.Time) ([]loan.Loan, error)
+
 	// UpdateLoanByPayment marks the given billings as paid and updates the
 	// loan's total paid amount and status to reflect a payment, all within a
 	// single transaction.
 	UpdateLoanByPayment(ctx context.Context, input loan.UpdateLoanByPaymentInput) error
+
+	// UpdateLoansStatusAndUpdateTimeByIDs updates the status and last activity time
+	// for all loans whose IDs are included in the provided list.
+	UpdateLoansStatusAndUpdateTimeByIDs(ctx context.Context, loanIDs []int64, userIDs []int64, status int16, updateTime time.Time) error
 }
 
 type Usecase struct {

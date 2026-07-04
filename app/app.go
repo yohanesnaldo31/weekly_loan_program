@@ -6,9 +6,12 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"github.com/robfig/cron/v3"
 
 	"weekly_loan_program/repo/cache"
 	"weekly_loan_program/repo/db"
+	"weekly_loan_program/server/cronhandler"
+	loanHandlerCron "weekly_loan_program/server/cronhandler/loan"
 	"weekly_loan_program/server/httphandler"
 	loanHandler "weekly_loan_program/server/httphandler/loan"
 	"weekly_loan_program/service/loan"
@@ -17,6 +20,7 @@ import (
 
 type Application struct {
 	HTTPHandler httphandler.HTTPHandler
+	CronHandler cronhandler.CronHandler
 }
 
 func NewApplication(ctx context.Context) (*Application, error) {
@@ -29,6 +33,8 @@ func NewApplication(ctx context.Context) (*Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("app: init redis: %w", err)
 	}
+
+	cronApp := cron.New(cron.WithSeconds())
 
 	// initialize repositories
 	dbRepo := db.NewRepository(dbPool)
@@ -43,8 +49,12 @@ func NewApplication(ctx context.Context) (*Application, error) {
 	// initialize handler layers -> validating user inpnut & building response
 	loanHandler := loanHandler.NewHandler(loanUsecase)
 
+	// init cron handler
+	loanCronHandler := loanHandlerCron.NewHandler(loanUsecase)
+
 	return &Application{
 		HTTPHandler: *httphandler.InitHTTPHandler(loanHandler),
+		CronHandler: *cronhandler.NewCronHandler(cronApp, loanCronHandler),
 	}, nil
 }
 

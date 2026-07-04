@@ -12,7 +12,7 @@ type Loan struct {
 	TotalPaid        int64
 	TotalWeek        int16
 	CreateTime       time.Time
-	UpdateTime       *time.Time
+	UpdateTime       time.Time
 }
 
 // Billing represents a row in the billing table.

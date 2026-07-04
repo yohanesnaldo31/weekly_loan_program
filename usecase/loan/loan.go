@@ -35,7 +35,7 @@ func (uc *Usecase) RequestLoan(ctx context.Context, request RequestLoanInput) (i
 	}
 
 	// billing calculation
-	outstandingAmount := request.LoanAmount*(interestsRate/100) + request.LoanAmount
+	outstandingAmount := calculateOutstandingAmount(request.LoanAmount, interestsRate)
 	billingAmount := outstandingAmount / int64(request.InstallmentInWeeks)
 	leftoverAmount := outstandingAmount - billingAmount*int64(request.InstallmentInWeeks)
 
@@ -138,11 +138,71 @@ func (uc *Usecase) PayLoan(ctx context.Context, request PayLoanInput) error {
 		BillingIDs:  billingsID,
 	})
 	if err != nil {
-		log.Println(fmt.Sprintf("error: do payment for uesr %d: %s", request.UserID, err.Error()))
+		log.Println(fmt.Sprintf("error: do payment for user %d: %s", request.UserID, err.Error()))
 		return err
 	}
 
 	return nil
+}
+
+// UpdateLoanDelinquentStatus returns loans that have been inactive for at least
+// three weeks and are still marked as new or in progress.
+func (uc *Usecase) UpdateLoanDelinquentStatus(ctx context.Context, currentTime time.Time) error {
+	// for delinquent loan, we consider the last activity time to be the update_time of the loan to be more than 3 weeks ago and still in the status of new or in progress,
+	// which means the user has not made any payment for at least 3 weeks.
+	lastActivityDate := currentTime.AddDate(0, 0, -21)
+	statuses := []int16{constants.LOAN_STATUS_NEW, constants.LOAN_STATUS_IN_PROGRESS}
+
+	svcLoans, err := uc.loan.GetLoansByStatusesAndLastActivityTime(ctx, statuses, lastActivityDate)
+	if err != nil {
+		log.Println(fmt.Sprintf("error: getting delinquent loans: %s", err.Error()))
+		return err
+	}
+
+	loanIDs := make([]int64, len(svcLoans))
+	userIDs := make([]int64, len(svcLoans))
+	for i, svcLoan := range svcLoans {
+		// the loanID can be pushed to big data or monitoring system here for further analysis
+		loanIDs[i] = svcLoan.ID
+		userIDs[i] = svcLoan.UserID
+	}
+
+	err = uc.loan.UpdateLoansStatusAndUpdateTimeByIDs(ctx, loanIDs, userIDs, constants.LOAN_STATUS_DELINQUENT, currentTime)
+	if err != nil {
+		log.Println(fmt.Sprintf("error: updating delinquent loans status: %s", err.Error()))
+		return err
+	}
+	return nil
+}
+
+// GetUserCurrentOutstanding returns the current outstanding amount for the user's
+// first loan, or 0 when the user has no loans.
+func (uc *Usecase) GetUserCurrentOutstanding(ctx context.Context, userID int64) (int64, error) {
+	loans, err := uc.GetUserLoansByUserID(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(loans) == 0 {
+		return 0, nil
+	}
+
+	return loans[0].TotalOutstanding - loans[0].TotalPaid, nil
+}
+
+// CheckUserDelinquent returns whether the user's latest loan is currently marked
+// as delinquent.
+func (uc *Usecase) CheckUserDelinquent(ctx context.Context, userID int64) (bool, error) {
+	loans, err := uc.GetUserLoansByUserID(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+
+	if len(loans) == 0 {
+		return false, nil
+	}
+
+	return loans[0].Status == constants.LOAN_STATUS_DELINQUENT, nil
 }
 
 // GetUserLoansByUserID returns up to 10 of the given user's loans, sorted by
@@ -158,4 +218,8 @@ func (uc *Usecase) GetUserLoansByUserID(ctx context.Context, userID int64) ([]Lo
 		loans[i] = Loan(svcLoan)
 	}
 	return loans, nil
+}
+
+func calculateOutstandingAmount(loanAmount int64, interestRate int64) int64 {
+	return loanAmount + loanAmount*interestRate/100
 }

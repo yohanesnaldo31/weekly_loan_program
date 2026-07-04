@@ -12,5 +12,5 @@ type Loan struct {
 	TotalPaid        int64
 	TotalWeek        int16
 	CreateTime       time.Time
-	UpdateTime       *time.Time
+	UpdateTime       time.Time
 }

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"weekly_loan_program/infra/constants"
 	"weekly_loan_program/server/httphandler"
 	loanUC "weekly_loan_program/usecase/loan"
 )
@@ -38,6 +39,59 @@ func (h *Handler) GetUserLoansHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// CheckUserDelinquentHandler handles GET requests that check whether the user
+// has a delinquent loan.
+func (h *Handler) CheckUserDelinquentHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseInt(r.FormValue("user_id"), 10, 64)
+	if err != nil || userID <= 0 {
+		httphandler.WriteRequestResponse(w, http.StatusBadRequest, CheckUserDelinquentResponse{
+			IsSuccess:    false,
+			ErrorMessage: "invalid user_id",
+		})
+		return
+	}
+
+	isDelinquent, err := h.loan.CheckUserDelinquent(r.Context(), userID)
+	if err != nil {
+		httphandler.WriteRequestResponse(w, http.StatusInternalServerError, CheckUserDelinquentResponse{
+			IsSuccess:    false,
+			ErrorMessage: err.Error(),
+		})
+		return
+	}
+
+	httphandler.WriteRequestResponse(w, http.StatusOK, CheckUserDelinquentResponse{
+		IsDelinquent: isDelinquent,
+		IsSuccess:    true,
+	})
+}
+
+// GetUserOutstandingHandler handles GET requests that return the user's current outstanding amount.
+func (h *Handler) GetUserOutstandingHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseInt(r.FormValue("user_id"), 10, 64)
+	if err != nil || userID <= 0 {
+		httphandler.WriteRequestResponse(w, http.StatusBadRequest, GetUserOutstandingResponse{
+			IsSuccess:    false,
+			ErrorMessage: "invalid user_id",
+		})
+		return
+	}
+
+	outstandingAmount, err := h.loan.GetUserCurrentOutstanding(r.Context(), userID)
+	if err != nil {
+		httphandler.WriteRequestResponse(w, http.StatusInternalServerError, GetUserOutstandingResponse{
+			IsSuccess:    false,
+			ErrorMessage: err.Error(),
+		})
+		return
+	}
+
+	httphandler.WriteRequestResponse(w, http.StatusOK, GetUserOutstandingResponse{
+		OutstandingAmount: outstandingAmount,
+		IsSuccess:         true,
+	})
+}
+
 // RequestLoanHandler handles POST requests that create a new loan for a user.
 func (h *Handler) RequestLoanHandler(w http.ResponseWriter, r *http.Request) {
 	var req RequestLoanRequest
@@ -62,7 +116,7 @@ func (h *Handler) RequestLoanHandler(w http.ResponseWriter, r *http.Request) {
 	if req.LoanAmount <= 10000 { // not sure what the requirements of the loan minimum or maximum
 		httphandler.WriteRequestResponse(w, http.StatusBadRequest, RequestLoanResponse{
 			IsSuccess:    false,
-			ErrorMessage: "invalid user_id",
+			ErrorMessage: "invalid loan amount",
 		})
 		return
 	}
@@ -100,6 +154,47 @@ func (h *Handler) RequestLoanHandler(w http.ResponseWriter, r *http.Request) {
 
 	httphandler.WriteRequestResponse(w, http.StatusOK, RequestLoanResponse{
 		LoanID:    loanID,
+		IsSuccess: true,
+	})
+}
+
+// TriggerDelinquentCheckHandler handles POST requests that trigger the delinquent loan check.
+func (h *Handler) TriggerDelinquentCheckHandler(w http.ResponseWriter, r *http.Request) {
+	var req TriggerDelinquentCheckRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httphandler.WriteRequestResponse(w, http.StatusBadRequest, TriggerDelinquentCheckResponse{
+			IsSuccess:    false,
+			ErrorMessage: "invalid request body",
+		})
+		return
+	}
+
+	if req.Time == "" {
+		httphandler.WriteRequestResponse(w, http.StatusBadRequest, TriggerDelinquentCheckResponse{
+			IsSuccess:    false,
+			ErrorMessage: "invalid time",
+		})
+		return
+	}
+
+	referenceTime, err := time.Parse(dateLayout, req.Time)
+	if err != nil {
+		httphandler.WriteRequestResponse(w, http.StatusBadRequest, TriggerDelinquentCheckResponse{
+			IsSuccess:    false,
+			ErrorMessage: "invalid time, expected format YYYY-MM-DD",
+		})
+		return
+	}
+
+	if err := h.loan.UpdateLoanDelinquentStatus(r.Context(), referenceTime); err != nil {
+		httphandler.WriteRequestResponse(w, http.StatusInternalServerError, TriggerDelinquentCheckResponse{
+			IsSuccess:    false,
+			ErrorMessage: err.Error(),
+		})
+		return
+	}
+
+	httphandler.WriteRequestResponse(w, http.StatusOK, TriggerDelinquentCheckResponse{
 		IsSuccess: true,
 	})
 }
@@ -168,7 +263,19 @@ func (h *Handler) PayLoanHandler(w http.ResponseWriter, r *http.Request) {
 func convertToLoanResponse(loans []loanUC.Loan) []LoanResponse {
 	out := make([]LoanResponse, len(loans))
 	for i, loan := range loans {
-		out[i] = LoanResponse(loan)
+		out[i] = LoanResponse{
+			ID:                 loan.ID,
+			UserID:             loan.UserID,
+			Status:             loan.Status,
+			StatusName:         constants.MAP_LOAN_STATUS[loan.Status],
+			LoanAmount:         loan.LoanAmount,
+			CurrentOutstanding: loan.TotalOutstanding - loan.TotalPaid,
+			TotalOutstanding:   loan.TotalOutstanding,
+			TotalPaid:          loan.TotalPaid,
+			TotalWeek:          loan.TotalWeek,
+			CreateTime:         loan.CreateTime,
+			UpdateTime:         loan.UpdateTime,
+		}
 	}
 	return out
 }

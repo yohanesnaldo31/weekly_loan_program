@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS loan (
     total_paid        numeric NOT NULL,
     total_week        smallint NOT NULL,
     create_time       timestamptz NOT NULL,
-    update_time       timestamptz
+    update_time       timestamptz NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS billing (
@@ -19,7 +19,9 @@ CREATE TABLE IF NOT EXISTS billing (
     payment_time timestamptz
 );
 
-CREATE INDEX IF NOT EXISTS idx_loan_user_id_create_time ON loan (user_id, create_time);
+CREATE INDEX IF NOT EXISTS idx_loan_user_id_create_time ON loan (user_id, create_time DESC);
+CREATE INDEX IF NOT EXISTS idx_loan_status_update_time_id ON loan (status, update_time DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_loan_id_status_update_time ON loan (id, status, update_time);
 
 CREATE INDEX IF NOT EXISTS idx_billing_loan_id ON billing (loan_id);
 CREATE INDEX IF NOT EXISTS idx_billing_due_date ON billing (due_date,status);

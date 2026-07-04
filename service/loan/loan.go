@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 
 	"weekly_loan_program/infra/constants"
 	"weekly_loan_program/repo/cache"
@@ -41,13 +42,27 @@ func (s *Service) CreateLoanWithBilling(ctx context.Context, loan Loan, billings
 	}
 
 	go func() {
-		err := s.cache.DeleteUserLoanByUserID(ctx, loan.UserID)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		err := s.cache.DeleteUserLoanByUserID(cleanupCtx, loan.UserID)
 		if err != nil {
-			log.Println("error delete redis loan with userID: " + strconv.FormatInt(loan.UserID, 10))
+			log.Println("error delete redis loan with userID " + strconv.FormatInt(loan.UserID, 10) + ": " + err.Error())
 		}
 	}()
 
 	return loanID, nil
+}
+
+// GetLoansByStatusesAndLastActivityTime returns loans whose status is in the provided list,
+// filtered by update_time lower than the provided date and ordered by update_time descending.
+func (s *Service) GetLoansByStatusesAndLastActivityTime(ctx context.Context, statuses []int16, lastActivityDate time.Time) ([]Loan, error) {
+	loans, err := s.db.GetLoansByStatusesAndLastActivityTime(ctx, statuses, lastActivityDate)
+	if err != nil {
+		return nil, fmt.Errorf("service: get loans by statuses: %w", err)
+	}
+
+	return convertDBLoanToLoan(loans), nil
 }
 
 // GetUserLoansByUserID returns up to 10 of the given user's loans, sorted by
@@ -100,11 +115,37 @@ func (s *Service) UpdateLoanByPayment(ctx context.Context, input UpdateLoanByPay
 	}
 
 	go func() {
-		err := s.cache.DeleteUserLoanByUserID(ctx, input.UserID)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		err := s.cache.DeleteUserLoanByUserID(cleanupCtx, input.UserID)
 		if err != nil {
-			log.Println("error delete redis loan with userID: " + strconv.FormatInt(input.UserID, 10))
+			log.Println("error delete redis loan with userID " + strconv.FormatInt(input.UserID, 10) + ": " + err.Error())
 		}
 	}()
+
+	return nil
+}
+
+// UpdateLoansStatusAndUpdateTimeByIDs updates the status and last activity time
+// for all loans whose IDs are included in the provided list.
+func (s *Service) UpdateLoansStatusAndUpdateTimeByIDs(ctx context.Context, loanIDs []int64, userIDs []int64, status int16, updateTime time.Time) error {
+	if err := s.db.UpdateLoansStatusAndUpdateTimeByIDs(ctx, loanIDs, status, updateTime); err != nil {
+		return fmt.Errorf("service: update loans status and update time by ids: %w", err)
+	}
+
+	// clean up cache for all userIDs in a separate goroutine to avoid blocking the main flow
+	go func(userIDs []int64) {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		for _, userID := range userIDs {
+			err := s.cache.DeleteUserLoanByUserID(cleanupCtx, userID)
+			if err != nil {
+				log.Println("error delete redis loan with userID " + strconv.FormatInt(userID, 10) + ": " + err.Error())
+			}
+		}
+	}(userIDs)
 
 	return nil
 }
