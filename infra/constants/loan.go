@@ -1,0 +1,8 @@
+package constants
+
+const (
+	LOAN_STATUS_NEW         = 1
+	LOAN_STATUS_IN_PROGRESS = 2
+	LOAN_STATUS_DELINQUENT  = 3
+	LOAN_STATUS_COMPLETE    = 4
+)
