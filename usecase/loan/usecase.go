@@ -7,6 +7,8 @@ import (
 	"weekly_loan_program/service/loan"
 )
 
+//go:generate mockgen -source=usecase.go -destination=usecase_mock.go -package=loan
+
 type LoanServiceProvider interface {
 	// CreateLoanWithBilling inserts loan and its billings within a single
 	// transaction, committing only if every insert succeeds.

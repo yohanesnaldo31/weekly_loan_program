@@ -12,6 +12,13 @@ A Go-based loan management service with HTTP endpoints for loan requests, paymen
 - Trigger delinquency updates via an internal endpoint
 - Run a scheduled delinquency check at midnight with a cron job
 
+## Constraints & Requirements
+- Users which have an ongoing loan, unable to request additional loan
+- Minimum number of loan is 10000
+- Number of installment in weeks can't be > 261 (5 years)
+- When paying bill, users have to pay the full amount, can't be lower and higher
+- If user failed to pay for the week billing, the amount user have to pay for the next billing will be accumulation of the previous unpaid billings
+
 ## High Level Design
 ![High Level Design](https://drive.google.com/uc?export=view&id=1cUcT8mq-vzEJEaq9r2XQmlPJV6ATplsb)
 

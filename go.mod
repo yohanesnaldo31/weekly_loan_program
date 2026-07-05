@@ -3,6 +3,7 @@ module weekly_loan_program
 go 1.26.4
 
 require (
+	github.com/golang/mock v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/redis/go-redis/v9 v9.21.0
